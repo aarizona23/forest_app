@@ -25,6 +25,7 @@ class IndicesTypes(TextChoices):
 
 class ForestModel(models.Model):
     name = models.CharField(max_length=250)
+    unique_id = models.CharField(max_length=250)
     polygon_coors = models.JSONField()
     description = models.TextField(blank=True, null=True)
 
