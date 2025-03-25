@@ -1,22 +1,29 @@
+import json
 import os
 import django
+import sys
 
 # Set up Django environment
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forest_app.settings")  # Change to your actual settings module
-django.setup()
+# Get the project base directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from api_forest.models import ForestModel, IndicesModel
+# Add the project directory to the Python path
+sys.path.append(BASE_DIR)
+
+# Set up Django settings
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forest_app.settings")  # Update this with your actual settings module
+django.setup()
 
 import datetime
 import ee
-import json
 from api_forest.models import ForestModel, IndicesModel, IndicesTypes
 from django.utils.timezone import make_aware
 
 # Authenticate with GEE (Only needed once, then initialize)
+ee.Authenticate()
 ee.Initialize(project='foresthero')
 
-indices = ['NDVI', 'EVI', 'NDWI', 'NBR', 'SAVI', 'GNDVI', 'NDRE', 'SIPI',
+indices = ['NDVI', 'EVI', 'NDWI', 'NBR', 'SAVI', 'GNDVI', 'SIPI',
            'MGRVI', 'TGI', 'VARI', 'GRVI', 'SR', 'CI', 'MSR', 'OSAVI',
            'NDMI', 'MSAVI', 'NDRI', 'RECI']
 
@@ -84,17 +91,6 @@ def add_indices(image, chosen_indices):
                 }
             ).rename('GNDVI')
             image = image.addBands(gndvi)
-
-        elif index == 'NDRE':
-            # NDRE = (B8 - B5) / (B8 + B5)
-            ndre = image.expression(
-                '(NIR - RED_EDGE) / (NIR + RED_EDGE)',
-                {
-                    'NIR': image.select('B8'),
-                    'RED_EDGE': image.select('B5')
-                }
-            ).rename('NDRE')
-            image = image.addBands(ndre)
 
         elif index == 'SIPI':
             # SIPI = (B8 - B2) / (B8 - B4)
@@ -308,10 +304,6 @@ def add_indices_landsat(image, chosen_indices):
             ).rename('GNDVI')
             image = image.addBands(gndvi)
 
-        elif index == 'NDRE':
-            # NDRE is not supported for Landsat 8 because it requires a red edge band.
-            print('Index NDRE is not supported for Landsat imagery. Skipping.')
-
         elif index == 'SIPI':
             # SIPI = (NIR - BLUE) / (NIR - RED)
             sipi = image.expression(
@@ -490,36 +482,77 @@ def calculate_mean_indices(image_with_indices, bbox):
     return index_means.getInfo()
 
 
+def get_available_date(unique_id: str):
+    """ Reads available Sentinel-2 and Landsat dates from a JSON file """
+    with open("scripts/coors_file.json", "r") as f:
+        data = json.load(f)
+
+    for entry in data:
+        if entry["id"] == unique_id:
+            return {
+                "s2_dates": entry.get("s2_dates", []),
+                "landsat_dates": entry.get("landsat_dates", [])
+            }
+
+    return {"s2_dates": [], "landsat_dates": []}
+
+
 def process_forest_indices():
-    forests = ForestModel.objects.all()  # Get all forests
+    forest = ForestModel.objects.get(id=1)
+    print(f"Processing indices for {forest.name}")
+    bbox_coords = forest.polygon_coors.get('bbox', [])  # Get bounding box from `polygon_coors`
+    bbox = ee.Geometry.Rectangle(bbox_coords)
+    print(bbox)
 
-    for forest in forests:
-        bbox_coords = forest.polygon_coors.get('bbox', [])  # Get bounding box from `polygon_coors`
-        bbox = ee.Geometry.Rectangle(bbox_coords)
+    # Get available dates for the forest
+    available_dates = get_available_date(forest.unique_id)
+    print(available_dates)
+    s2_dates = available_dates["s2_dates"]
+    landsat_dates = available_dates["landsat_dates"]
 
-        # Example date range, you can modify it
-        start_date = datetime.date(2023, 1, 1)
-        end_date = datetime.date(2023, 12, 31)
+    # Process Sentinel-2 dates
+    for date_str in s2_dates:
+        start_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        end_date = start_date + datetime.timedelta(days=1)
+        end_date_str = end_date.strftime("%Y-%m-%d")
 
-        while start_date <= end_date:
-            date_str = start_date.strftime('%Y-%m-%d')
-            end_date_str = (start_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+        # Get preprocessed image
+        image = get_preprocessed_image(date_str, end_date_str, bbox)
+        mean_values = calculate_mean_indices(image, bbox)
 
-            image_with_indices = get_preprocessed_image(date_str, end_date_str, bbox)
-            mean_values = calculate_mean_indices(image_with_indices, bbox)
+        # Store results in IndicesModel
+        for index_name, value in mean_values.items():
+            in_name = IndicesTypes(index_name).name
+            IndicesModel.objects.create(
+                name=in_name,
+                value=value,
+                forest=forest,
+                timestamp=make_aware(datetime.datetime.strptime(date_str, "%Y-%m-%d"))
+            )
 
-            # Store results in IndicesModel
-            for index_name, value in mean_values.items():
-                in_name = IndicesTypes(index_name).label
-                IndicesModel.objects.create(
-                    name=in_name,
-                    value=value,
-                    forest=forest,
-                    timestamp=make_aware(datetime.datetime.strptime(date_str, "%Y-%m-%d"))
-                )
+        print(f"Saved indices for {forest.name} on {date_str}")
 
-            print(f"Saved indices for {forest.name} on {date_str}")
-            start_date += datetime.timedelta(days=7)  # Process weekly
+    # Process Landsat dates
+    for date_str in landsat_dates:
+        start_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        end_date = start_date + datetime.timedelta(days=1)
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        # Get preprocessed image
+        image = get_preprocessed_image_landsat(date_str, end_date_str, bbox)
+        mean_values = calculate_mean_indices(image, bbox)
+
+        # Store results in IndicesModel
+        for index_name, value in mean_values.items():
+            in_name = IndicesTypes(index_name).name
+            IndicesModel.objects.create(
+                name=in_name,
+                value=value,
+                forest=forest,
+                timestamp=make_aware(datetime.datetime.strptime(date_str, "%Y-%m-%d"))
+            )
+
+        print(f"Saved indices for {forest.name} on {date_str}")
 
 if __name__ == "__main__":
     process_forest_indices()

@@ -45,7 +45,14 @@ def get_forest_folder(service, subfolder_id):
     """ Retrieve the 'forest' folder inside a subfolder """
     query = f"'{subfolder_id}' in parents and name='forest' and mimeType='application/vnd.google-apps.folder'"
     results = service.files().list(q=query, fields="files(id, name)").execute()
-    return results.get("files", [{}])[0].get("id")
+    # Get the list of files found
+    folders = results.get("files", [])
+
+    if not folders:  # If the list is empty, return None
+        print(f"No 'forest' folder found in subfolder ID: {subfolder_id}")
+        return None
+
+    return folders[0]["id"]  # Return the first matching folder ID
 
 
 def get_satellite_folders(service, forest_folder_id):
