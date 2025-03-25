@@ -1,0 +1,61 @@
+from rest_framework import serializers
+from .models import *
+from django.db.models import F, Avg
+from django.db.models.functions import Abs
+
+class GetForestMaskSerializer(serializers.Serializer):
+    forest_id = serializers.IntegerField(required=True)
+    end_date = serializers.DateField(required=True)
+
+    def validate(self, data):
+        try:
+            forest = ForestModel.objects.get(id=data['forest_id'])
+        except ForestModel.DoesNotExist:
+            raise serializers.ValidationError("Forest not found")
+        data['forest_mask'] = (
+            ForestMaskModel.objects.filter(forest=forest)
+            .annotate(diff=Abs(F("timestamp") - data["end_date"]))
+            .order_by("diff")  # Orders by the absolute difference
+            .first()  # Gets the closest match
+        )
+        return data
+
+class GetForestIndiceSerializer(serializers.Serializer):
+    forest_id = serializers.IntegerField(required=True)
+    start_date = serializers.DateField(required=True)
+    end_date = serializers.DateField(required=True)
+    indice_name = serializers.CharField(required=True)
+
+    def validate(self, data):
+        try:
+            forest = ForestModel.objects.get(id=data['forest_id'])
+        except ForestModel.DoesNotExist:
+            raise serializers.ValidationError("Forest not found")
+
+        start_date = data["start_date"]
+        end_date = data["end_date"]
+
+        # Filter indices within the date range
+        data['indices'] = IndicesModel.objects.filter(
+            forest=forest,
+            name=data["indice_name"],
+            timestamp__range=(start_date, end_date)
+        ).order_by("timestamp")
+        return data
+
+class GetBurnedMaskSerializer(serializers.Serializer):
+    forest_id = serializers.IntegerField(required=True)
+    end_date = serializers.DateField(required=True)
+
+    def validate(self, data):
+        try:
+            forest = ForestModel.objects.get(id=data['forest_id'])
+        except ForestModel.DoesNotExist:
+            raise serializers.ValidationError("Forest not found")
+        data['burned_mask'] = (
+            BurnedMaskModel.objects.filter(forest=forest)
+            .annotate(diff=Abs(F("timestamp") - data["end_date"]))
+            .order_by("diff")  # Orders by the absolute difference
+            .first()  # Gets the closest match
+        )
+        return data

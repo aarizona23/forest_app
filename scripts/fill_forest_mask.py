@@ -62,45 +62,6 @@ def get_satellite_folders(service, forest_folder_id):
     return {folder["id"]: folder["name"] for folder in results.get("files", [])}
 
 
-def get_tiff_files(service, folder_id):
-    """Retrieve TIFF files from Google Drive as file-like objects"""
-    query = f"'{folder_id}' in parents and mimeType='image/tiff'"
-    results = service.files().list(q=query, fields="files(id, name)").execute()
-
-    file_objects = []
-    for file in results.get("files", []):
-        file_id = file["id"]
-        file_name = file["name"]
-        print(f"Downloading {file_name}")
-        request = service.files().get_media(fileId=file_id)
-        file_stream = BytesIO()
-        downloader = MediaIoBaseDownload(file_stream, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-
-        file_stream.seek(0)  # Reset stream position for reading
-        file_objects.append((file_name, file_stream))  # Store as tuple (filename, file object)
-
-    return file_objects
-
-def convert_mask_to_array(file):
-    #returns array of 0,1,2 for the single .tif file
-    print("Converting mask to array")
-    with rasterio.open(file) as src:
-        img = src.read(1)
-
-        new_img = np.copy(img)
-
-        # Convert values:
-        # - 255 becomes 1 (forest)
-        # - 100 becomes 2 (cloud/water)
-        # - 0 remains 0
-        new_img[img == 255] = 1
-        new_img[img == 100] = 2
-        print(new_img)
-        return new_img
-
 def extract_forest_info(file_name):
     """ Extract unique_id and timestamp from file name """
     print(file_name)
@@ -123,7 +84,7 @@ def extract_forest_info(file_name):
     return unique_id, timestamp
 
 
-def save_to_db(file_name, arr_mask):
+def save_to_db(file_name, file_id):
     """ Save the processed mask array to the database """
     print(f"Processing {file_name}")
     unique_id, timestamp = extract_forest_info(file_name)
@@ -134,9 +95,15 @@ def save_to_db(file_name, arr_mask):
     forest, _ = ForestModel.objects.get_or_create(unique_id=unique_id, defaults={"name": unique_id})
     ForestMaskModel.objects.get_or_create(
         forest=forest,
-        forest_mask={"mask": arr_mask.tolist()},
+        forest_mask="https://drive.google.com/file/d/" + file_id,
         timestamp=timestamp
     )
+
+def get_tiff_files(service, folder_id):
+    """ Retrieve TIFF files inside a folder """
+    query = f"'{folder_id}' in parents and mimeType='image/tiff'"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    return [(file["id"], file["name"]) for file in results.get("files", [])]
 
 
 if __name__ == "__main__":
@@ -156,7 +123,6 @@ if __name__ == "__main__":
             print(f"Processing {sat_folder_name} folder")
             tiff_files = get_tiff_files(service, sat_folder_id)
             print(f"Processing {len(tiff_files)} TIFF files from {sat_folder_name} folder")
-            for file_name, file_obj in tiff_files:
-                print(f"Processing {file_name}")
-                mask_array = convert_mask_to_array(file_obj)  # Pass file object
-                save_to_db(file_name, mask_array)
+            for file_id, file_name in tiff_files:
+                print(f"Processing {file_name}") # Pass file object
+                save_to_db(file_name, file_id)
