@@ -3,3 +3,7 @@ credentials.json
 db.sqlite3
 .idea
 templates
+.DS_Store
+.env
+__pycache__/
+*.py[cod]
