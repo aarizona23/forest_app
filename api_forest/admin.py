@@ -13,3 +13,7 @@ class IndicesModelAdmin(admin.ModelAdmin):
 @admin.register(ForestMaskModel)
 class ForestClassificationModelAdmin(admin.ModelAdmin):
     list_display = ('forest', 'timestamp')
+
+@admin.register(BurnedMaskModel)
+class BurnedMaskModelAdmin(admin.ModelAdmin):
+    list_display = ('forest', 'timestamp')

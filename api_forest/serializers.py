@@ -8,6 +8,7 @@ class GetForestMaskSerializer(serializers.Serializer):
     end_date = serializers.DateField(required=True)
 
     def validate(self, data):
+        data = super().validate(data)
         try:
             forest = ForestModel.objects.get(id=data['forest_id'])
         except ForestModel.DoesNotExist:
@@ -27,6 +28,7 @@ class GetForestIndiceSerializer(serializers.Serializer):
     indice_name = serializers.CharField(required=True)
 
     def validate(self, data):
+        data = super().validate(data)
         try:
             forest = ForestModel.objects.get(id=data['forest_id'])
         except ForestModel.DoesNotExist:
@@ -48,6 +50,7 @@ class GetBurnedMaskSerializer(serializers.Serializer):
     end_date = serializers.DateField(required=True)
 
     def validate(self, data):
+        data = super().validate(data)
         try:
             forest = ForestModel.objects.get(id=data['forest_id'])
         except ForestModel.DoesNotExist:
@@ -58,4 +61,36 @@ class GetBurnedMaskSerializer(serializers.Serializer):
             .order_by("diff")  # Orders by the absolute difference
             .first()  # Gets the closest match
         )
+        return data
+
+class GetDeforestationSerializer(serializers.Serializer):
+    forest_id = serializers.IntegerField(required=True)
+    start_date = serializers.DateField(required=True)
+    end_date = serializers.DateField(required=True)
+
+    def validate(self, data):
+        data = super().validate(data)
+        try:
+            forest = ForestModel.objects.get(id=data['forest_id'])
+        except ForestModel.DoesNotExist:
+            raise serializers.ValidationError("Forest not found")
+
+        start_date = data["start_date"]
+        end_date = data["end_date"]
+
+        # Filter forest masks
+        forest_masks = ForestMaskModel.objects.filter(
+            forest=forest,
+            timestamp__range=(start_date, end_date)
+        ).order_by("timestamp")
+
+        forest_mask1 = forest_masks.first()
+        forest_mask2 = forest_masks.last()
+
+        if not forest_mask1 or not forest_mask2:
+            raise serializers.ValidationError("Forest masks not found")
+
+        # Calculate deforestation
+        data['forest_mask1'] = forest_mask1
+        data['forest_mask2'] = forest_mask2
         return data

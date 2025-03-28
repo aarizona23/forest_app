@@ -37,10 +37,11 @@ class IndicesModel(models.Model):
 
 class ForestMaskModel(models.Model):
     forest = models.ForeignKey(ForestModel, on_delete=models.CASCADE, related_name='classification')
-    forest_mask = models.URLField()
+    forest_mask = models.ImageField(upload_to='files/forest_masks/')
+    tiff_url = models.URLField()
     timestamp = models.DateTimeField()
 
 class BurnedMaskModel(models.Model):
     forest = models.ForeignKey(ForestModel, on_delete=models.CASCADE, related_name='burned')
-    burned_mask = models.URLField()
+    burned_mask = models.ImageField(upload_to='files/burned_masks/')
     timestamp = models.DateTimeField()

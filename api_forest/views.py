@@ -14,7 +14,7 @@ class GetForestMaskView(APIView):
         serializer = GetForestMaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         forest_mask = serializer.validated_data['forest_mask']
-        return Response(forest_mask.forest_mask)
+        return Response(forest_mask.forest_mask.url if forest_mask else None)
 
 class GetForestIndicesView(APIView):
     def post(self, request):
@@ -54,6 +54,14 @@ class GetBurnedMaskView(APIView):
         serializer = GetBurnedMaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         burned_mask = serializer.validated_data['burned_mask']
-        return Response(burned_mask.burned_mask)
+        return Response(burned_mask.burned_mask.url if burned_mask else None)
+
+class GetDeforestationView(APIView):
+    def post(self, request):
+        serializer = GetDeforestationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        forest_mask1 = serializer.validated_data['forest_mask1']
+        forest_mask2 = serializer.validated_data['forest_mask2']
+        pass
 
 

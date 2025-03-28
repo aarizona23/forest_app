@@ -9,6 +9,8 @@ from google.oauth2 import service_account
 from io import BytesIO
 from datetime import datetime
 from django.utils.timezone import make_aware
+from PIL import Image
+import io
 
 # Get the project base directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -83,8 +85,55 @@ def extract_forest_info(file_name):
     print(timestamp)
     return unique_id, timestamp
 
+def get_tiff_files(service, folder_id):
+    """Retrieve TIFF files from Google Drive as file-like objects"""
+    query = f"'{folder_id}' in parents and mimeType='image/tiff'"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
 
-def save_to_db(file_name, file_id):
+    file_objects = []
+    for file in results.get("files", []):
+        file_id = file["id"]
+        file_name = file["name"]
+        print(f"Downloading {file_name}")
+        request = service.files().get_media(fileId=file_id)
+        file_stream = BytesIO()
+        downloader = MediaIoBaseDownload(file_stream, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+
+        file_stream.seek(0)  # Reset stream position for reading
+        file_objects.append(({file_id: file_name}, file_stream))
+    return file_objects
+
+"""
+def get_tiff_files(service, folder_id):
+    query = f"'{folder_id}' in parents and mimeType='image/tiff'"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    return [(file["id"], file["name"]) for file in results.get("files", [])]
+"""
+def convert_tiff_to_image(file_stream, output_format="PNG"):
+    """
+    Converts a TIFF file stream to an image format (PNG or JPEG).
+    """
+    # Open the TIFF image from file stream
+    image = Image.open(file_stream)
+
+    # Convert to RGB (TIFF may have transparency or multiple channels)
+    image = image.convert("RGB")
+
+    # Save to an in-memory buffer
+    output_buffer = io.BytesIO()
+    image.save(output_buffer, format=output_format)
+
+    # Move buffer cursor to the beginning
+    output_buffer.seek(0)
+
+    return output_buffer
+
+from django.core.files.base import ContentFile
+
+def save_to_db(file_name, file_id, file_image):
     """ Save the processed mask array to the database """
     print(f"Processing {file_name}")
     unique_id, timestamp = extract_forest_info(file_name)
@@ -93,18 +142,16 @@ def save_to_db(file_name, file_id):
         return
 
     forest, _ = ForestModel.objects.get_or_create(unique_id=unique_id, defaults={"name": unique_id})
+
+    # Convert BytesIO to Django File object with a name
+    image_file = ContentFile(file_image.getvalue(), name=f"{file_name}.png")
+
     ForestMaskModel.objects.get_or_create(
         forest=forest,
-        forest_mask="https://drive.google.com/file/d/" + file_id,
+        forest_mask = image_file,
+        tiff_url="https://drive.google.com/file/d/" + file_id,
         timestamp=timestamp
     )
-
-def get_tiff_files(service, folder_id):
-    """ Retrieve TIFF files inside a folder """
-    query = f"'{folder_id}' in parents and mimeType='image/tiff'"
-    results = service.files().list(q=query, fields="files(id, name)").execute()
-    return [(file["id"], file["name"]) for file in results.get("files", [])]
-
 
 if __name__ == "__main__":
     service = authenticate_google_drive()
@@ -123,6 +170,10 @@ if __name__ == "__main__":
             print(f"Processing {sat_folder_name} folder")
             tiff_files = get_tiff_files(service, sat_folder_id)
             print(f"Processing {len(tiff_files)} TIFF files from {sat_folder_name} folder")
-            for file_id, file_name in tiff_files:
+            for file_info, file_object in tiff_files:
+                file_id, file_name = file_info.keys(), file_info.values()
+                file_id = list(file_id)[0]
+                file_name = list(file_name)[0]
+                file_image = convert_tiff_to_image(file_object)
                 print(f"Processing {file_name}") # Pass file object
-                save_to_db(file_name, file_id)
+                save_to_db(file_name, file_id, file_image)
