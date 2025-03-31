@@ -21,7 +21,8 @@ class ChatbotAPIView(APIView):
         print("Category is: ", category)
         
         # Step 2: Prepare context
-        system_prompt = "You are a helpful assistant answering forest monitoring questions using real data. Available forests and their IDs: 1: Semey Ormany, 2: Semey Ormany 2, 3: North KZ, 4: East KZ"
+        system_prompt = "You are a helpful assistant answering forest monitoring questions using real data.  Available forests and their IDs for identification:" \
+        " 1: Semey Ormany, 2: Semey Ormany 2, 3: North KZ, 4: East KZ. Also might be provided additional context abou forests info from 2020 till 2025 (not inclusive) years."
         context = ""
 
         if category == 1:
@@ -46,6 +47,7 @@ class ChatbotAPIView(APIView):
 
         print("prompt: ", messages)
         # Step 4: GPT call
+
         answer = get_chatbot_response(messages)
 
         # Step 5: Store messages
