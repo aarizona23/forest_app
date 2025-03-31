@@ -140,8 +140,11 @@ def save_to_db(file_name, file_id, file_image):
     if not unique_id or not timestamp:
         print(f"Skipping {file_name} due to invalid format")
         return
-
-    forest, _ = ForestModel.objects.get_or_create(unique_id=unique_id, defaults={"name": unique_id})
+    try:
+        forest = ForestModel.objects.get(unique_id=unique_id)
+    except ForestModel.DoesNotExist:
+        print(f"Forest with unique ID '{unique_id}' not found")
+        return
 
     # Convert BytesIO to Django File object with a name
     image_file = ContentFile(file_image.getvalue(), name=f"{file_name}.png")
