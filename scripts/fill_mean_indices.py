@@ -556,4 +556,4 @@ def process_forest_indices(forest: ForestModel):
 if __name__ == "__main__":
     forests = ForestModel.objects.all()
     for forest in forests:
-        process_forest_indices()
+        process_forest_indices(forest)
