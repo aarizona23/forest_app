@@ -497,8 +497,7 @@ def get_available_date(unique_id: str):
     return {"s2_dates": [], "landsat_dates": []}
 
 
-def process_forest_indices():
-    forest = ForestModel.objects.get(id=1)
+def process_forest_indices(forest: ForestModel):
     print(f"Processing indices for {forest.name}")
     bbox_coords = forest.polygon_coors.get('bbox', [])  # Get bounding box from `polygon_coors`
     bbox = ee.Geometry.Rectangle(bbox_coords)
@@ -555,4 +554,6 @@ def process_forest_indices():
         print(f"Saved indices for {forest.name} on {date_str}")
 
 if __name__ == "__main__":
-    process_forest_indices()
+    forests = ForestModel.objects.all()
+    for forest in forests:
+        process_forest_indices()

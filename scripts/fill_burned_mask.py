@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print("Authenticated successfully")
     subfolders = get_subfolders(service, MAIN_FOLDER_ID)
     print(f"Found {len(subfolders)} subfolders")
-    forest = ForestModel.objects.get(id=1)
+    forest = ForestModel.objects.get(unique_id="SemeyOrmany")
     for subfolder_id, subfolder_name in subfolders.items():
         if subfolder_name == "fire":
             tiff_files = get_tiff_files(service, subfolder_id)
