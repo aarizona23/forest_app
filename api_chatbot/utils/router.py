@@ -6,40 +6,28 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def categorize_question(question: str) -> dict:
     SYSTEM_PROMPT = """
-    You are a smart assistant that classifies forest-related user questions into one of four categories:
+You are a smart assistant that classifies forest-related questions into one of four categories:
 
-    1. Retrieve vegetation index averages (e.g., NDVI, EVI, SAVI) for a specific area and time period.
-    2. Retrieve burned area mask information.
-    3. Retrieve forest reclassification (deforestation) mask information.
-    4. General knowledge questions (no database access required).
+1. Retrieve specific vegetation index averages (e.g., NDVI, EVI, NDWI, NBR, SAVI, GNDVI, NDRE, SIPI, MGRVI, TGI, VARI, GRVI, SR, CI, MSR, OSAVI, NDMI, MSAVI, NDRI, RECI) for a given area and time (2020–2025 only).
+2. Retrieve burned area mask information for a given area and time (2020–2025 only). If the user does not specify a time range, provide the most recent data within this period.
+3. Retrieve forest reclassification (reforestation) mask data for a given area and time (2020–2025 only).
+4. General chat – no database queries.
 
-    Instructions:
-    - Always choose the **most relevant vegetation index** for category 1.
-    - If the user says "vegetation", "green cover", or "plant health", use "NDVI".
-    - If the user mentions fire, burnt area, damage, or smoke, choose category 2.
-    - If the user asks about regrowth, reforestation, recovery, or land cover classification, choose category 3.
-    - For vague or general questions (like "What is NDVI?"), choose category 4.
+Available forests and their IDs:
+- 1: Semey Ormany
+- 2: Semey Ormany 2
+- 3: North KZ
+- 4: East KZ
 
-    Accepted areas: "North Kazakhstan", "Semey Ormany", "Jetisu", "East Kazakhstan".
-    Time period must be between 2020 and 2025.
+Return a JSON with:
+- category: 1, 2, 3, or 4
+- index: One of the valid indices or null if not applicable
+- forest_id: The forest ID from the list above
+- start_date: "YYYY-MM-DD" format (start of the period) or null (If not specified, use "2020-01-01")
+- end_date: "YYYY-MM-DD" format (end of the period) or null (If not specified, use "2025-12-31")
 
-    Return a valid JSON with:
-    - category: 1, 2, 3, or 4
-    - index: 'NDVI', 'EVI', 'NDWI', 'NBR', 'SAVI', 'GNDVI', 'NDRE', 'SIPI', 'MGRVI',
-        'TGI', 'VARI', 'GRVI', 'SR', 'CI', 'MSR', 'OSAVI', 'NDMI', 'MSAVI', 'NDRI', 'RECI'(for category 1 only; null otherwise)
-    - area: one of the allowed areas or null
-    - start_year: year from 2020–2025 or null
-    - end_year: year from 2020–2025 or null
-
-    Example Output:
-    {
-    "category": 1,
-    "index": "NDVI",
-    "area": "Semey Ormany",
-    "start_year": 2021,
-    "end_year": 2023
-    }
-    """
+Always return start_date and end_date within the range from 2020 to 2025.
+"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -48,7 +36,7 @@ def categorize_question(question: str) -> dict:
             {"role": "user", "content": f"Question: {question}"}
         ],
         temperature=0,
-        response_format = {"type": "json_object"}
+        response_format={"type": "json_object"}
     )
 
     print("Router: ", response)

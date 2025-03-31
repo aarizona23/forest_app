@@ -21,11 +21,12 @@ class ChatbotAPIView(APIView):
         print("Category is: ", category)
         
         # Step 2: Prepare context
-        system_prompt = "You are a helpful assistant answering forest monitoring questions using real data."
+        system_prompt = "You are a helpful assistant answering forest monitoring questions using real data. Available forests and their IDs: 1: Semey Ormany, 2: Semey Ormany 2, 3: North KZ, 4: East KZ"
         context = ""
 
         if category == 1:
             context = get_index_summary(parsed)
+            system_prompt += "In the context provided a number of 12 or less index averages throughout the period."
         elif category == 2:
             context = get_burned_area_summary(parsed)
         elif category == 3:
@@ -43,6 +44,7 @@ class ChatbotAPIView(APIView):
             messages.append({"role": msg.role, "content": msg.text})
         messages.append({"role": "user", "content": message})
 
+        print("prompt: ", messages)
         # Step 4: GPT call
         answer = get_chatbot_response(messages)
 

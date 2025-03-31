@@ -7,3 +7,4 @@ templates
 .env
 __pycache__/
 *.py[cod]
+files
