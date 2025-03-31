@@ -8,6 +8,20 @@ from api_chatbot.utils.context_builder import (
 )
 from .serializers import ChatbotMessageSerializer, MessageSerializer
 
+COMMON_INFO = """ The main information about the database for context:
+The database stores mean indices of different vegetative indices such as 
+'NDVI', 'EVI', 'NDWI', 'NBR', 'SAVI', 'GNDVI', 'SIPI', 'MGRVI', 'TGI', 'VARI', 'GRVI', 'SR', 'CI', 'MSR', 'OSAVI', 'NDMI', 'MSAVI', 'NDRI', 'RECI' for a given area and time (2020–2025 only).
+It has data for 2020, 2021, 2023 and 2024 with biweekly intervals.
+Indices are derived using sattelite images. Specifically, Sentinel-2 and Landsat sattelites were used to capture those images.
+Also, there are availbale burned masks only for Semey Ormany.
+In addition, the database has forest masks which are used to retrieve deforestation information.
+The database consists of only 4 areas of Kazakhstan, they are:
+- 1: Semey Ormany
+- 2: Semey Ormany 2
+- 3: North KZ
+- 4: East KZ
+"""
+
 class ChatbotAPIView(APIView):
     def post(self, request):
         serializer = ChatbotMessageSerializer(data=request.data)
@@ -32,6 +46,8 @@ class ChatbotAPIView(APIView):
             context = get_burned_area_summary(parsed)
         elif category == 3:
             context = get_deforestation_summary(parsed)
+        elif category == 4:
+            context = COMMON_INFO
 
         if context:
             system_prompt += f"\n\nData context:\n{context}"
