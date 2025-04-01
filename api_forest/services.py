@@ -43,7 +43,7 @@ class GetDeforestation:
             print(f"Error downloading TIFF from Google Drive: {e}")
             return None
 
-    def delete_with_delay(self, file_path, delay=60):
+    def delete_with_delay(self, file_path, delay=600):
         """Delete file after a delay (in seconds)."""
         time.sleep(delay)
         if os.path.exists(file_path):
