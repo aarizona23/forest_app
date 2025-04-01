@@ -4,13 +4,13 @@ from django.db.models import F, Avg
 from django.db.models.functions import Abs
 
 class GetForestMaskSerializer(serializers.Serializer):
-    forest_id = serializers.IntegerField(required=True)
+    forest_unique_id = serializers.CharField(required=True)
     end_date = serializers.DateField(required=True)
 
     def validate(self, data):
         data = super().validate(data)
         try:
-            forest = ForestModel.objects.get(id=data['forest_id'])
+            forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
         data['forest_mask'] = (
@@ -22,7 +22,7 @@ class GetForestMaskSerializer(serializers.Serializer):
         return data
 
 class GetForestIndiceSerializer(serializers.Serializer):
-    forest_id = serializers.IntegerField(required=True)
+    forest_unique_id = serializers.CharField(required=True)
     start_date = serializers.DateField(required=True)
     end_date = serializers.DateField(required=True)
     indice_name = serializers.CharField(required=True)
@@ -30,7 +30,7 @@ class GetForestIndiceSerializer(serializers.Serializer):
     def validate(self, data):
         data = super().validate(data)
         try:
-            forest = ForestModel.objects.get(id=data['forest_id'])
+            forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
 
@@ -46,13 +46,13 @@ class GetForestIndiceSerializer(serializers.Serializer):
         return data
 
 class GetBurnedMaskSerializer(serializers.Serializer):
-    forest_id = serializers.IntegerField(required=True)
+    forest_unique_id = serializers.CharField(required=True)
     end_date = serializers.DateField(required=True)
 
     def validate(self, data):
         data = super().validate(data)
         try:
-            forest = ForestModel.objects.get(id=data['forest_id'])
+            forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
         data['burned_mask'] = (
@@ -64,14 +64,14 @@ class GetBurnedMaskSerializer(serializers.Serializer):
         return data
 
 class GetDeforestationSerializer(serializers.Serializer):
-    forest_id = serializers.IntegerField(required=True)
+    forest_unique_id = serializers.CharField(required=True)
     start_date = serializers.DateField(required=True)
     end_date = serializers.DateField(required=True)
 
     def validate(self, data):
         data = super().validate(data)
         try:
-            forest = ForestModel.objects.get(id=data['forest_id'])
+            forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
 

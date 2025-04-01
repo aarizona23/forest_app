@@ -1,4 +1,4 @@
-from django.contrib.admin.templatetags.admin_list import pagination
+from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -56,50 +56,17 @@ class GetBurnedMaskView(APIView):
         burned_mask = serializer.validated_data['burned_mask']
         return Response(burned_mask.burned_mask.url if burned_mask else None)
 
-class GetDeforestationView(APIView):
+class GetDeforestationMaskView(APIView):
     def post(self, request):
         serializer = GetDeforestationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        forest_mask1 = serializer.validated_data['forest_mask1']
-        forest_mask2 = serializer.validated_data['forest_mask2']
-        pass
-        """
-        if img1 is None or img2 is None:
-            return Response({"error": "Failed to download one or both TIFF files"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Convert to NumPy arrays
-        arr1 = np.array(img1)
-        arr2 = np.array(img2)
+        urls = [
+            serializer.validated_data["forest_mask1"].tiff_url,
+            serializer.validated_data["forest_mask2"].tiff_url,
+        ]
 
-        # Apply comparison logic: (arr1 & 1) | (arr2 & 1)
-        result_arr = ((arr1 & 1) | (arr2 & 1)).astype(np.uint8) * 255  # Scale 1 → 255 for visibility
-
-        # Convert back to TIFF
-        result_tiff = self.create_tiff(result_arr)
-
-        # Return image as response
-        return self.send_image_response(result_tiff)
-
-    def download_tiff(self, url):
-        try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()  # Raise error for bad responses (4xx, 5xx)
-            return Image.open(BytesIO(response.content))
-        except Exception as e:
-            print(f"Error downloading TIFF from {url}: {e}")
-            return None
-
-    def create_tiff(self, array):
-        img = Image.fromarray(array)
-        output = BytesIO()
-        img.save(output, format="TIFF")
-        output.seek(0)
-        return output
-
-    def send_image_response(self, image):
-        response = Response(image.getvalue(), content_type="image/tiff")
-        response["Content-Disposition"] = "attachment; filename=deforestation_mask.tiff"
-        return response
-        """
-
+        from .services import GetDeforestation
+        deforestation = GetDeforestation(urls).execute()
+        return Response(deforestation)
 
