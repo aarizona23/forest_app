@@ -26,8 +26,6 @@ def get_index_summary(parsed: dict) -> str:
     ).order_by("timestamp")
 
     count = entries.count()
-
-    print("Check count of indeces: ", count)
     
     if count == 0:
         return f"No {index} data found for forest ID {forest_unique_id} between {start_date} and {end_date}"
@@ -144,8 +142,6 @@ def get_burned_area_summary(parsed: dict) -> str:
         "end_date": parsed.get("end_date")
     }
 
-    print(f"For burned index summary got: {data}")
-
     factory = APIRequestFactory()
     request = factory.post('/forest/get_burned_mask/', data, format='json')
     
@@ -160,9 +156,7 @@ def get_burned_area_summary(parsed: dict) -> str:
             return "No relevant burned area data found for the requested forest and date."
 
         image_path = os.path.join(BASE_DIR, image_url.strip("/"))  # This constructs the absolute path
-        print(image_path)
         if os.path.exists(image_path):
-            print(f"Image found at: {image_path}")
             analysis = analyze_burned_mask(image_path)
             return f"Burned area mask URL: {image_url}\n{analysis}"
         else:
