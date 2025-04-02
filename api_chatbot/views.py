@@ -29,14 +29,13 @@ class ChatbotAPIView(APIView):
         message = serializer.validated_data["message"]
         user = request.user if request.user.is_authenticated else None
 
-        # Step 1: Categorize
+        # LLM categorizes the question in order to identify which function should be used for context retrieval (RAG)
         parsed = categorize_question(message)
         category = parsed.get("category")
         print("Category is: ", category)
         
-        # Step 2: Prepare context
         system_prompt = "You are a helpful assistant answering forest monitoring questions using real data.  Available forests and their IDs for identification:" \
-        " 1: Semey Ormany, 2: Semey Ormany 2, 3: North KZ, 4: East KZ. Also might be provided additional context abou forests info from 2020 till 2025 (not inclusive) years."
+        "SemeyOrmany: Semey Ormany, SemeyOrmany2: Semey Ormany 2, NorthKZ: North KZ, EastKZ1: East KZ. Also might be provided additional context abou forests info from 2020 till 2025 (not inclusive) years."
         context = ""
 
         if category == 1:
@@ -52,21 +51,17 @@ class ChatbotAPIView(APIView):
         if context:
             system_prompt += f"\n\nData context:\n{context}"
 
-        print("Context is: ", context)
-
-        # Step 3: Prepare chat history
+        # Extract Chat history, 5 last messages for more context of the conversation
         history = MessageModel.objects.filter(user=user).order_by("-created_at")[:5]
         messages = [{"role": "system", "content": system_prompt}]
         for msg in reversed(history):
             messages.append({"role": msg.role, "content": msg.text})
         messages.append({"role": "user", "content": message})
 
-        print("prompt: ", messages)
-        # Step 4: GPT call
-
+        # Call LLM API to get response
         answer = get_chatbot_response(messages)
 
-        # Step 5: Store messages
+        # Store new messages into database to keep track of the converstaion
         MessageModel.objects.create(user=user, role="user", text=message)
         MessageModel.objects.create(user=user, role="assistant", text=answer)
 

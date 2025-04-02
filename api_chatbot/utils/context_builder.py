@@ -3,21 +3,21 @@ import numpy as np
 from PIL import Image
 from rest_framework.test import APIRequestFactory
 from api_forest.models import ForestModel, IndicesModel
-from api_forest.views import GetBurnedMaskView, GetDeforestationView
+from api_forest.views import GetBurnedMaskView, GetDeforestationMaskView
 
 def get_index_summary(parsed: dict) -> str:
-    forest_id = parsed.get("forest_id")
+    forest_unique_id = parsed.get("forest_unique_id")
     index = parsed.get("index")
     start_date = parsed.get("start_date")
     end_date = parsed.get("end_date")
 
-    if not forest_id or not index or not start_date or not end_date:
+    if not forest_unique_id or not index or not start_date or not end_date:
         return f"Invalid input. Forest ID or Indice Name is missing."
 
     try:
-        forest = ForestModel.objects.get(id=forest_id)
+        forest = ForestModel.objects.get(unique_id=forest_unique_id)
     except ForestModel.DoesNotExist:
-        return f"No data found for forest ID {forest_id}"
+        return f"No data found for forest ID {forest_unique_id}"
 
     entries = IndicesModel.objects.filter(
         forest=forest,
@@ -30,12 +30,12 @@ def get_index_summary(parsed: dict) -> str:
     print("Check count of indeces: ", count)
     
     if count == 0:
-        return f"No {index} data found for forest ID {forest_id} between {start_date} and {end_date}"
+        return f"No {index} data found for forest ID {forest_unique_id} between {start_date} and {end_date}"
 
     # If 12 or fewer, return raw data with dates
     if count <= 12:
         indice_values = list(entries.values_list("value", "timestamp"))
-        summary = f"{index} values for forest ID {forest_id}:\n"
+        summary = f"{index} values for forest ID {forest_unique_id}:\n"
         for value, timestamp in indice_values:
             summary += f"• {value:.2f} ({timestamp.date()})\n"
         return summary
@@ -67,7 +67,7 @@ def get_index_summary(parsed: dict) -> str:
         date_ranges.append((date_start, date_end))
 
     # Format output
-    summary = f"{index} averaged values for forest ID {forest_id} with dates:\n"
+    summary = f"{index} averaged values for forest ID {forest_unique_id} with dates:\n"
     for value, date_range in zip(grouped_indices, date_ranges):
         summary += f"• {value:.2f} ({date_range[0]} - {date_range[1]})\n"
 
@@ -140,7 +140,7 @@ def analyze_burned_mask(image_path: str) -> str:
 
 def get_burned_area_summary(parsed: dict) -> str:
     data = {
-        "forest_id": parsed.get("forest_id"),
+        "forest_unique_id": parsed.get("forest_unique_id"),
         "end_date": parsed.get("end_date")
     }
 
@@ -170,9 +170,62 @@ def get_burned_area_summary(parsed: dict) -> str:
     else:
         return "No relevant burned area data found."
 
+def analyze_deforestation_mask(image_path: str) -> str:
+    """
+    Analyze the deforestation mask image and extract relevant statistics.
+    Optimized to handle high-resolution images efficiently.
+    """
+    try:
+        with Image.open(image_path) as img:
+            # Optionally resize the image for faster processing (e.g., downscale by a factor of 4)
+            img = img.resize((img.width // 4, img.height // 4))
+            img = img.convert('L')  # Convert to grayscale
+
+            img_array = np.array(img)
+
+            # Apply thresholding to remove noise
+            threshold = 50 
+            deforested_pixels = np.sum(img_array >= threshold)
+            total_pixels = img_array.size
+            deforested_percentage = (deforested_pixels / total_pixels) * 100
+
+            # Divide image into 9 sectors
+            height, width = img_array.shape
+            thirds_h = height // 3
+            thirds_w = width // 3
+
+            sectors = {
+                "North-West": img_array[:thirds_h, :thirds_w],
+                "North": img_array[:thirds_h, thirds_w:2*thirds_w],
+                "North-East": img_array[:thirds_h, 2*thirds_w:],
+                "West": img_array[thirds_h:2*thirds_h, :thirds_w],
+                "Center": img_array[thirds_h:2*thirds_h, thirds_w:2*thirds_w],
+                "East": img_array[thirds_h:2*thirds_h, 2*thirds_w:],
+                "South-West": img_array[2*thirds_h:, :thirds_w],
+                "South": img_array[2*thirds_h:, thirds_w:2*thirds_w],
+                "South-East": img_array[2*thirds_h:, 2*thirds_w:]
+            }
+
+            deforested_sectors = {}
+            for name, sector in sectors.items():
+                sector_d_pixels = np.sum(sector >= threshold)
+                sector_total_pixels = sector.size
+                sector_percentage = (sector_d_pixels / sector_total_pixels) * 100
+                deforested_sectors[name] = sector_percentage
+
+            sector_analysis = "\n".join([f"- {name}: {percent:.2f}% deforested" for name, percent in deforested_sectors.items()])
+
+            return (
+                f"Deforestation Analysis:\n"
+                f"Total deforested area: {deforested_percentage:.2f}% of the total area.\n"
+                f"Sectors Analysis:\n{sector_analysis}"
+            )
+    except Exception as e:
+        return f"Analysis failed: {e}"
+
 def get_deforestation_summary(parsed: dict) -> str:
     data = {
-        "forest_id": parsed.get("forest_id"),
+        "forest_unique_id": parsed.get("forest_unique_id"),
         "start_date": parsed.get("start_date"),
         "end_date": parsed.get("end_date")
     }
@@ -180,10 +233,18 @@ def get_deforestation_summary(parsed: dict) -> str:
     factory = APIRequestFactory()
     request = factory.post('/forest/get_deforestation/', data, format='json')
     
-    view = GetDeforestationView.as_view()
+    view = GetDeforestationMaskView.as_view()
     response = view(request)
 
     if response.status_code == 200:
-        return f"Deforestation analysis result: {response.data}"
+        # Get the URL and build the absolute path
+        image_url = response.data
+        image_path = os.path.join(BASE_DIR, image_url.strip("/"))  # This constructs the absolute path
+
+        if os.path.exists(image_path):
+            analysis = analyze_deforestation_mask(image_path)
+            return f"Start Date {parsed.get("start_date")} and End Date {parsed.get("end_date")} for {parsed.get("forest_unique_id")}\n Deforestation mask URL: {image_url}\n{analysis}"
+        else:
+            return f"Deforestation mask URL: {image_url}\nAnalysis failed: Image file not found."
     else:
         return "No relevant deforestation data found."
