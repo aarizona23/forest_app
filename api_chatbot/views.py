@@ -32,7 +32,6 @@ class ChatbotAPIView(APIView):
         # LLM categorizes the question in order to identify which function should be used for context retrieval (RAG)
         parsed = categorize_question(message)
         category = parsed.get("category")
-        print("Category is: ", category)
         
         system_prompt = "You are a helpful assistant answering forest monitoring questions using real data.  Available forests and their IDs for identification:" \
         "SemeyOrmany: Semey Ormany, SemeyOrmany2: Semey Ormany 2, NorthKZ: North KZ, EastKZ1: East KZ. Also might be provided additional context abou forests info from 2020 till 2025 (not inclusive) years."
