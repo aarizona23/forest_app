@@ -11,3 +11,5 @@ earthengine-api>=0.1.350  # Google Earth Engine (ee)
 geemap>=0.20.0
 djangorestframework==3.15.2
 pillow>=8.3.1
+openai==1.69.0
+dotenv==0.9.9
