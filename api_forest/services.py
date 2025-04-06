@@ -88,11 +88,15 @@ class GetDeforestation:
         arr1 = np.array(img1)
         arr2 = np.array(img2)
 
-        # Optimized Logical Operation using np.maximum
-        result_arr = np.maximum(arr1, arr2).astype(np.uint8) * 255  # Convert to 255 for visualization
+        result_arr = (((arr1 == 255) & (arr2 == 0)).astype(np.uint8))  # Convert to 255 for visualization
+        height, width = result_arr.shape
+        color_arr = np.zeros((height, width, 4), dtype=np.uint8)
+        
+        # Where deforestation is detected (mask > 0), set the pixel to red.
+        color_arr[result_arr > 0] = [255, 0, 0, 255]
 
-        # Save to PNG and get file path
-        file_path, file_url = self.save_png_file(result_arr)
+        file_path, file_url = self.save_png_file(color_arr)
+
 
         # Delete files
         self.delete_file(file_path)
