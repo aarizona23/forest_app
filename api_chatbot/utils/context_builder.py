@@ -165,44 +165,38 @@ def get_burned_area_summary(parsed: dict) -> str:
         return "No relevant burned area data found."
 
 def analyze_deforestation_mask(image_path: str) -> str:
-    """
-    Analyze the deforestation mask image and extract relevant statistics.
-    Optimized to handle high-resolution images efficiently.
-    """
     try:
         with Image.open(image_path) as img:
-            # Optionally resize the image for faster processing (e.g., downscale by a factor of 4)
-            img = img.resize((img.width // 4, img.height // 4))
-            img = img.convert('L')  # Convert to grayscale
+            img = img.convert('RGBA')  # Ensure RGBA format
 
             img_array = np.array(img)
-
-            # Apply thresholding to remove noise
-            threshold = 50 
-            deforested_pixels = np.sum(img_array >= threshold)
-            total_pixels = img_array.size
+            
+            # Detecting red pixels (deforestation mask)
+            red_mask = (img_array[:, :, 0] == 255) & (img_array[:, :, 1] == 0) & (img_array[:, :, 2] == 0) & (img_array[:, :, 3] == 255)
+            deforested_pixels = np.sum(red_mask)
+            total_pixels = img_array.shape[0] * img_array.shape[1]
             deforested_percentage = (deforested_pixels / total_pixels) * 100
 
             # Divide image into 9 sectors
-            height, width = img_array.shape
+            height, width = img_array.shape[:2]
             thirds_h = height // 3
             thirds_w = width // 3
 
             sectors = {
-                "North-West": img_array[:thirds_h, :thirds_w],
-                "North": img_array[:thirds_h, thirds_w:2*thirds_w],
-                "North-East": img_array[:thirds_h, 2*thirds_w:],
-                "West": img_array[thirds_h:2*thirds_h, :thirds_w],
-                "Center": img_array[thirds_h:2*thirds_h, thirds_w:2*thirds_w],
-                "East": img_array[thirds_h:2*thirds_h, 2*thirds_w:],
-                "South-West": img_array[2*thirds_h:, :thirds_w],
-                "South": img_array[2*thirds_h:, thirds_w:2*thirds_w],
-                "South-East": img_array[2*thirds_h:, 2*thirds_w:]
+                "North-West": red_mask[:thirds_h, :thirds_w],
+                "North": red_mask[:thirds_h, thirds_w:2*thirds_w],
+                "North-East": red_mask[:thirds_h, 2*thirds_w:],
+                "West": red_mask[thirds_h:2*thirds_h, :thirds_w],
+                "Center": red_mask[thirds_h:2*thirds_h, thirds_w:2*thirds_w],
+                "East": red_mask[thirds_h:2*thirds_h, 2*thirds_w:],
+                "South-West": red_mask[2*thirds_h:, :thirds_w],
+                "South": red_mask[2*thirds_h:, thirds_w:2*thirds_w],
+                "South-East": red_mask[2*thirds_h:, 2*thirds_w:]
             }
 
             deforested_sectors = {}
             for name, sector in sectors.items():
-                sector_d_pixels = np.sum(sector >= threshold)
+                sector_d_pixels = np.sum(sector)
                 sector_total_pixels = sector.size
                 sector_percentage = (sector_d_pixels / sector_total_pixels) * 100
                 deforested_sectors[name] = sector_percentage
@@ -211,7 +205,7 @@ def analyze_deforestation_mask(image_path: str) -> str:
 
             return (
                 f"Deforestation Analysis:\n"
-                f"Total deforested area: {deforested_percentage:.2f}% of the total area.\n"
+                f"Total deforested area: {deforested_percentage:.6f}% of the total area.\n"
                 f"Sectors Analysis:\n{sector_analysis}"
             )
     except Exception as e:
@@ -237,6 +231,7 @@ def get_deforestation_summary(parsed: dict) -> str:
 
         if os.path.exists(image_path):
             analysis = analyze_deforestation_mask(image_path)
+
             return f"Start Date {parsed.get("start_date")} and End Date {parsed.get("end_date")} for {parsed.get("forest_unique_id")}\n Deforestation mask URL: {image_url}\n{analysis}"
         else:
             return f"Deforestation mask URL: {image_url}\nAnalysis failed: Image file not found."
