@@ -1,5 +1,7 @@
 .venv
+venv
 credentials.json
 db.sqlite3
 .idea
 templates
+db
