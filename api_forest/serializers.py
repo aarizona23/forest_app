@@ -13,12 +13,15 @@ class GetForestMaskSerializer(serializers.Serializer):
             forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
-        data['forest_mask'] = (
-            ForestMaskModel.objects.filter(forest=forest)
-            .annotate(diff=Abs(F("timestamp") - data["end_date"]))
-            .order_by("diff")  # Orders by the absolute difference
-            .first()  # Gets the closest match
+        end_date = data["end_date"]
+        masks = list(ForestMaskModel.objects.filter(forest=forest))
+
+        closest_mask = min(
+            masks,
+            key=lambda m: abs((m.timestamp.date() - end_date).days),
+            default=None
         )
+        data['forest_mask'] = closest_mask
         return data
 
 class GetForestIndiceSerializer(serializers.Serializer):
@@ -55,12 +58,15 @@ class GetBurnedMaskSerializer(serializers.Serializer):
             forest = ForestModel.objects.get(unique_id=data['forest_unique_id'])
         except ForestModel.DoesNotExist:
             raise serializers.ValidationError("Forest not found")
-        data['burned_mask'] = (
-            BurnedMaskModel.objects.filter(forest=forest)
-            .annotate(diff=Abs(F("timestamp") - data["end_date"]))
-            .order_by("diff")  # Orders by the absolute difference
-            .first()  # Gets the closest match
+        end_date = data["end_date"]
+        masks = list(BurnedMaskModel.objects.filter(forest=forest))
+
+        closest_mask = min(
+            masks,
+            key=lambda m: abs((m.timestamp.date() - end_date).days),
+            default=None
         )
+        data['burned_mask'] = closest_mask
         return data
 
 class GetDeforestationSerializer(serializers.Serializer):
