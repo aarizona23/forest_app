@@ -24,3 +24,5 @@ urlpatterns = [
     path('forest/', include(api_forest_urls)),
     path('chatbot/', include(api_chatbot_urls)),
 ]
+
+
