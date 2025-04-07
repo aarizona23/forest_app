@@ -17,12 +17,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from api_forest.urls import urlpatterns as api_forest_urls
+
+from api_chatbot.urls import urlpatterns as api_chatbot_urls
+
 from django.conf import settings
 from django.conf.urls.static import static
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('forest/', include(api_forest_urls)),
+    path('chatbot/', include(api_chatbot_urls)),
 ]
 
 if settings.DEBUG:
