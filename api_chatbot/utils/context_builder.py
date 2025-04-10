@@ -77,61 +77,64 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 def analyze_burned_mask(image_path: str) -> str:
     """
     Analyze the burned area mask image and extract relevant statistics.
-    Optimized to handle high-resolution images efficiently.
+    This version handles RGBA images where burned areas are red (139, 0, 0, 255).
     """
     try:
         with Image.open(image_path) as img:
-            # Optionally resize the image for faster processing (e.g., downscale by a factor of 4)
+            # Optionally resize the image for faster processing
             img = img.resize((img.width // 4, img.height // 4))
-            img = img.convert('L')  # Convert to grayscale
+            img = img.convert('RGBA')  # Ensure it's RGBA
 
             img_array = np.array(img)
 
-            # Burned pixels are anything that is NOT pure black (0)
-            burned_pixels = np.sum(img_array > 0)
-            total_pixels = img_array.size
+            # Create a boolean mask for red pixels
+            red_mask = np.all(img_array == [139, 0, 0, 255], axis=-1)
+
+            burned_pixels = np.sum(red_mask)
+            total_pixels = red_mask.size
             burned_percentage = (burned_pixels / total_pixels) * 100
 
-            # Additional statistics
-            min_intensity = np.min(img_array)
-            max_intensity = np.max(img_array)
-            mean_intensity = np.mean(img_array)
+            # Additional statistics — based on red channel for curiosity
+            red_channel = img_array[:, :, 0]
+            min_intensity = np.min(red_channel)
+            max_intensity = np.max(red_channel)
+            mean_intensity = np.mean(red_channel)
 
             # Splitting the image into 9 sectors
-            height, width = img_array.shape
+            height, width = red_mask.shape
             thirds_h = height // 3
             thirds_w = width // 3
 
             sectors = {
-                "North-West": img_array[:thirds_h, :thirds_w],
-                "North": img_array[:thirds_h, thirds_w:2*thirds_w],
-                "North-East": img_array[:thirds_h, 2*thirds_w:],
-                "West": img_array[thirds_h:2*thirds_h, :thirds_w],
-                "Center": img_array[thirds_h:2*thirds_h, thirds_w:2*thirds_w],
-                "East": img_array[thirds_h:2*thirds_h, 2*thirds_w:],
-                "South-West": img_array[2*thirds_h:, :thirds_w],
-                "South": img_array[2*thirds_h:, thirds_w:2*thirds_w],
-                "South-East": img_array[2*thirds_h:, 2*thirds_w:]
+                "North-West": red_mask[:thirds_h, :thirds_w],
+                "North": red_mask[:thirds_h, thirds_w:2*thirds_w],
+                "North-East": red_mask[:thirds_h, 2*thirds_w:],
+                "West": red_mask[thirds_h:2*thirds_h, :thirds_w],
+                "Center": red_mask[thirds_h:2*thirds_h, thirds_w:2*thirds_w],
+                "East": red_mask[thirds_h:2*thirds_h, 2*thirds_w:],
+                "South-West": red_mask[2*thirds_h:, :thirds_w],
+                "South": red_mask[2*thirds_h:, thirds_w:2*thirds_w],
+                "South-East": red_mask[2*thirds_h:, 2*thirds_w:]
             }
 
             sector_burned_percentages = {}
-
             for name, sector in sectors.items():
                 sector_total = sector.size
-                sector_burned = np.sum(sector > 0)
+                sector_burned = np.sum(sector)
                 sector_burned_percentage = (sector_burned / sector_total) * 100
                 sector_burned_percentages[name] = sector_burned_percentage
 
-            # Find the most burned sectors
-            most_burned = sorted(sector_burned_percentages.items(), key=lambda x: x[1], reverse=True)[:3]
-            most_burned_str = ', '.join([f"{name} ({percent:.2f}%)" for name, percent in most_burned])
+            # Build report for all sectors
+            all_sectors_str = '\n'.join(
+                [f"- {name}: {percent:.2f}%" for name, percent in sector_burned_percentages.items()]
+            )
 
             return (f"Burned area analysis: {burned_percentage:.2f}% of the total area is burned.\n"
-                    f"Additional Statistics:\n"
-                    f"- Minimum Intensity: {min_intensity}\n"
-                    f"- Maximum Intensity: {max_intensity}\n"
-                    f"- Mean Intensity: {mean_intensity:.2f}\n"
-                    f"Most burned sectors: {most_burned_str}\n")
+                f"Additional Statistics:\n"
+                f"- Minimum Intensity: {min_intensity}\n"
+                f"- Maximum Intensity: {max_intensity}\n"
+                f"- Mean Intensity: {mean_intensity:.2f}\n"
+                f"Sector-wise burned area:\n{all_sectors_str}")
     except Exception as e:
         return f"Analysis failed: {e}"
     
@@ -141,7 +144,7 @@ def get_burned_area_summary(parsed: dict) -> str:
         "forest_unique_id": parsed.get("forest_unique_id"),
         "end_date": parsed.get("end_date")
     }
-
+    
     factory = APIRequestFactory()
     request = factory.post('/forest/get_burned_mask/', data, format='json')
     
