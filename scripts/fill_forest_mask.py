@@ -110,6 +110,7 @@ def get_tiff_files(service, folder_id):
     results = service.files().list(q=query, fields="files(id, name)").execute()
     return [(file["id"], file["name"]) for file in results.get("files", [])]
 """
+import numpy as np
 def convert_tiff_to_image(file_stream, output_format="PNG"):
     """
     Converts a TIFF file stream to an image format (PNG or JPEG).
@@ -117,14 +118,25 @@ def convert_tiff_to_image(file_stream, output_format="PNG"):
     # Open the TIFF image from file stream
     image = Image.open(file_stream)
 
-    # Convert to RGB (TIFF may have transparency or multiple channels)
-    image = image.convert("RGB")
+    # Convert to NumPy array
+    arr = np.array(image)
 
-    # Save to an in-memory buffer
+    # Apply your condition — here: where pixel == 255
+    mask = (arr == 255).astype(np.uint8)
+
+    # Create an RGBA array
+    height, width = mask.shape
+    color_arr = np.zeros((height, width, 4), dtype=np.uint8)
+
+    # Apply red color with full opacity where condition is met
+    color_arr[mask == 1] = [0, 255, 0, 255]
+
+    # Convert to a PIL image
+    result_img = Image.fromarray(color_arr, mode="RGBA")
+
+    # Save to in-memory buffer
     output_buffer = io.BytesIO()
-    image.save(output_buffer, format=output_format)
-
-    # Move buffer cursor to the beginning
+    result_img.save(output_buffer, format="PNG")
     output_buffer.seek(0)
 
     return output_buffer
