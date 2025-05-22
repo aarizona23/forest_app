@@ -1,12 +1,57 @@
-.venv
-venv
-credentials.json
-db.sqlite3
-.idea
-templates
-.DS_Store
-.env
+# Python
 __pycache__/
 *.py[cod]
-files
-db
+*.so
+*.log
+*.swp
+*.env
+.env
+.venv/
+venv/
+*.sqlite3
+db.sqlite3
+credentials.json
+
+# Django
+*.pot
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+/media/
+*.log
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs (PyCharm, IntelliJ)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/ios/Flutter/.last_build_id
+**/doc/api/
+
+# Android
+/android/app/debug
+/android/app/profile
+/android/app/release
+app.*.map.json
+app.*.symbols
+
+# Custom project directories
+files/
+db/
+migrate_working_dir/
