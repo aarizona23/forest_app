@@ -68,6 +68,6 @@ This project presents a comprehensive, AI-powered forest monitoring system desig
 - **Usability**: System Usability Score: **86.6 / 100**
 - **Performance**: 2–5s load time (visualizations), 4s chatbot latency
 
-
-
+## 📽️ Demo Presentation
+📎 [Click here to watch the demo video](https://drive.google.com/drive/folders/1WPTAngzM9HSC-APCBc1pasyfTuDCP_N8?usp=sharing)  
 
