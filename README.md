@@ -1,6 +1,6 @@
 # 🌲 AI-Driven Forest Management
 
-This project presents a comprehensive, AI-powered forest monitoring system designed specifically for Kazakhstan’s forests. It integrates satellite remote sensing, machine learning, and an interactive chatbot to help researchers, policymakers, and conservationists monitor forest health, deforestation, and fire damage in near-real-time.
+This project presents a comprehensive, AI-powered forest monitoring system designed specifically for Kazakhstan’s forests (East ans West). It integrates satellite remote sensing, machine learning, and an interactive chatbot to help researchers, policymakers, and conservationists monitor forest health, deforestation, and fire damage in near-real-time.
 
 ## 📌 Project Objectives
 
